@@ -1,0 +1,647 @@
+import requests
+from requests import get
+import datetime
+
+g_ip = 0    # Global Variable of IP Address
+g_lat = 0   # Global Variable of Latitude
+g_lon = 0   # Global Variable of Longnitude
+
+def ip_finder():
+    
+    global g_ip  # Global Variable of IP Address
+    global g_lat # Global Variable of Latitude
+    global g_lon # Global Variable of Longnitude
+    
+    if(g_ip==0):
+        ip = get('https://api.ipify.org')  # Fetching Current Device Public IP address
+        if ip.status_code != 200:
+            raise ApiError('GET /tasks/ {}'.format(ip.status_code))
+        else:
+            ip = ip.text
+            g_ip = ip
+
+    yourapi = 'put-your-Api-key' # Your API key
+    ip_url = 'http://api.ipstack.com/'+g_ip+'?access_key='+yourapi
+    jsn_ip = requests.get(ip_url)
+    if jsn_ip.status_code != 200:
+        raise ApiError('GET /tasks/ {}'.format(jsn_ip.status_code))
+    else:
+        ip_result = jsn_ip.json()
+        g_lat = ip_result['latitude']      # Set the Latitude
+        g_lon = ip_result['longitude']     # Set the Longitude
+        
+        
+def weather_json(mode,arr):
+    
+    global g_ip  # Global Variable of IP Address
+    global g_lat # Global Variable of Latitude
+    global g_lon # Global Variable of Longnitude
+    
+    if (mode=='ip' or mode=='IP'):
+        if(arr==0):
+            if(g_ip==0):
+                ip_finder()  # For Collecting IP,Lat,Lon
+            else:
+                g_ip = arr
+                ip_finder()  # For Collecing the Lat Lon
+        else:
+                g_ip = arr
+                ip_finder()  # For Collecing the Lat Lon
+        
+    elif (mode=='LATLON' or mode=='latlon'):
+        if(arr[0]!=0 and arr[1]!=0  ):
+            g_lat = arr[0]
+            g_lon = arr[1]
+        else:
+            g_ip = 0
+            g_lat = 0
+            g_lon = 0
+            ip_finder()
+    else:
+        g_lat = 0
+        g_lon = 0
+        ip_finder()
+        
+
+def current(mod,arr):
+    result = weather_json(mod,arr)
+    
+    dic={} # Result Dictionary
+    fer = result['currently']['temperature']
+    cel = (fer-32)*(5/9) # Fahrenheit to Celsius conversion 
+    hum = int(result['currently']['humidity'] * 100) # Humidity on percentage
+    dic["Overall Weather "]=result['currently']['summary']
+    dic["Current Temperature in C"]="%.2f" % cel
+    dic["Current Temperature in F"]="%.2f" %fer
+    dic["Current Humidity"]=hum
+    dic["Current Wind Speed"]=result['currently']['windSpeed']
+    dic["Current Wind Pressure"]=result['currently']['pressure']
+    return(dic)
+
+    
+    
+#Parameters and return values. You can use all of this parameters to fetch the results : (Add into above)
+        #time -> 1555648895        use as ->   dic['time'] = result['currently']['time']
+        #summary -> "Clear"
+        #icon -> "clear-day"
+        #precipIntensity -> 0
+        #precipProbability -> 0
+        #temperature -> 95.14
+        #apparentTemperature -> 95.14
+        #dewPoint -> 58.83
+        #humidity -> 0.3
+        #pressure -> 1008.26
+        #windSpeed -> 3.41
+        #windGust -> 10.73
+        #windBearing -> 299
+        #cloudCover -> 0
+        #uvIndex -> 10
+        #visibility -> 10
+        #ozone -> 275.36
+    
+    
+    
+def hourly(mod,arr):
+    result = weather_json(mod,arr)
+    dic={'Today':{"%.2f"%i:{} for i in range(25)},'Tomorrow':{"%.2f"%i:{} for i in range(25)}}
+    for i in range (1,49):
+
+        fer = result['hourly']['data'][i]['temperature']
+        cel = (fer-32)*(5/9)                 # Fahrenheit to Celsius conversion 
+        hum = int(result['hourly']['data'][i]['humidity'] * 100)  # Humidity on percentage
+
+        if(i<=24):
+            dic['Today']["%.2f" %i]["Overall Weather"]= result['hourly']['data'][i]['summary']
+            dic['Today']["%.2f" %i]["Temperature in C"]="%.2f" % cel
+            dic['Today']["%.2f" %i]["Temperature in F"]="%.2f" %fer
+            dic['Today']["%.2f" %i]["Humidity"]=hum
+            dic['Today']["%.2f" %i]["Wind Speed"]=result['hourly']['data'][i]['windSpeed']
+            dic['Today']["%.2f" %i]["Wind Pressure"]=result['hourly']['data'][i]['pressure']
+
+        else:
+            tm  = i - 24
+            dic['Tomorrow']["%.2f" %tm]["Overall Weather"]= result['hourly']['data'][i]['summary']
+            dic['Tomorrow']["%.2f" %tm]["Temperature in C"]="%.2f" % cel
+            dic['Tomorrow']["%.2f" %tm]["Temperature in F"]="%.2f" %fer
+            dic['Tomorrow']["%.2f" %tm]["Humidity"]=hum
+            dic['Tomorrow']["%.2f" %tm]["Wind Speed"]=result['hourly']['data'][i]['windSpeed']
+            dic['Tomorrow']["%.2f"%tm]["Wind Pressure"]=result['hourly']['data'][i]['pressure']
+        
+        
+    return(dic)
+        
+#Parameters and return values. You can use all of this parameters to fetch the results : (Add into above)
+        
+      
+        #time -> 1555651800     to use => dic['Today']["%.2f" %tm]["time"] = result['hourly']['data'][i]['time']
+        #summary ->  "Clear"
+        #icon ->  "clear-day"
+        #precipIntensity ->  0
+        #precipProbability ->  0
+        #temperature ->  96.92
+        #apparentTemperature ->  96.92
+        #dewPoint ->  56.92
+        #humidity ->  0.27
+        #pressure  -> 1007.89
+        #windSpeed ->  6.61
+        #windGust ->  11.28
+        #windBearing ->  330
+        #cloudCover  -> 0
+        #uvIndex  ->  12
+        #visibility ->  10
+        #ozone  -> 275.35
+        
+    def weekly(mod,arr):
+    result = weather_json(mod,arr)
+    x = datetime.datetime.now()
+    dic = {}
+    for i in range (0,7):
+        r_date = x+datetime.timedelta(i)
+        dic[r_date.strftime("%d-%B-%Y")]={}
+
+    for i in range (0,7):
+        r_date = x+datetime.timedelta(i)
+
+        mfer = result['daily']['data'][i]['temperatureMax']
+        mcel = (mfer-32)*(5/9)                # Fahrenheit to Celsius conversion
+
+        Mfer = result['daily']['data'][i]['temperatureMin']
+        Mcel = (Mfer-32)*(5/9)              # Fahrenheit to Celsius conversion
+        hum = int(result['daily']['data'][i]['humidity'] * 100) # Humidity on percentage
+
+        dic[r_date.strftime("%d-%B-%Y")]["Overall Weather"]=result['daily']['data'][i]['summary']
+        dic[r_date.strftime("%d-%B-%Y")]["Max Temperature in C"]="%.2f" % Mcel
+        dic[r_date.strftime("%d-%B-%Y")]["Max Temperature in F"]="%.2f" %Mfer
+        dic[r_date.strftime("%d-%B-%Y")]["Min Temperature in C"]= "%.2f" % mcel
+        dic[r_date.strftime("%d-%B-%Y")]["Min Temperature in F"]="%.2f" %mfer
+        dic[r_date.strftime("%d-%B-%Y")]["Humidity"]=hum
+        dic[r_date.strftime("%d-%B-%Y")]["Wind Speed"]=result['daily']['data'][i]['windSpeed']
+        dic[r_date.strftime("%d-%B-%Y")]["Wind Pressure"]=result['daily']['data'][i]['pressure']
+        
+    return(dic)
+
+#Parameters and return values. You can use all of this parameters to fetch the results : (Add into above)
+        
+        #time -> 1555612200  to use => dic[r_date.strftime("%d-%B-%Y")]["time"]=result['daily']['data'][i]['time']
+        #summary -> "Partly cloudy starting in the afternoon."
+        #icon -> "partly-cloudy-night"
+        #sunriseTime -> 1555630991
+        #sunsetTime -> 1555677088
+        #moonPhase -> 0.51
+        #precipIntensity -> 0.0002
+        #precipIntensityMax -> 0.0012
+        #precipIntensityMaxTime -> 1555662600
+        #precipProbability -> 0.04
+        #precipType -> "rain"
+        #temperatureHigh -> 97.81
+        #temperatureHighTime -> 1555655400
+        #temperatureLow -> 76.66
+        #temperatureLowTime -> 1555716600
+        #apparentTemperatureHigh -> 97.81
+        #apparentTemperatureHighTime -> 1555655400
+        #apparentTemperatureLow -> 76.66
+        #apparentTemperatureLowTime -> 1555716600
+        #dewPoint -> 59.24
+        #humidity -> 0.4
+        #pressure -> 1006.44
+        #windSpeed -> 4.29
+        #windGust -> 26.3
+        #windGustTime -> 1555695000
+        #windBearing -> 248
+        #cloudCover -> 0.17
+        #uvIndex -> 12
+        #uvIndexTime -> 1555651800
+        #visibility -> 10
+        #ozone -> 273.2
+        #temperatureMin -> 76.3
+        #temperatureMinTime -> 1555626600
+        #temperatureMax -> 97.81
+        #temperatureMaxTime -> 1555655400
+        #apparentTemperatureMin -> 76.57
+        #apparentTemperatureMinTime -> 1555626600
+        #apparentTemperatureMax -> 97.81
+        #apparentTemperatureMaxTime -> 1555655400
+        
+        
+        
+        
+current('latlon',[0,0])
+OUTPUT::
+{'Overall Weather ': 'Mostly Cloudy',
+ 'Current Temperature in C': '32.34',
+ 'Current Temperature in F': '90.21',
+ 'Current Humidity': 47,
+ 'Current Wind Speed': 5.13,
+ 'Current Wind Pressure': 1006.14}
+ 
+ 
+ 
+
+current('latlon',[52.3824,4.8995])
+OUTPUT::
+{'Overall Weather ': 'Clear',
+ 'Current Temperature in C': '20.25',
+ 'Current Temperature in F': '68.45',
+ 'Current Humidity': 47,
+ 'Current Wind Speed': 10.95,
+ 'Current Wind Pressure': 1029.75}
+
+
+
+
+current('IP','Provided ip')
+OUTPUT::
+{'Overall Weather ': 'Mostly Cloudy',
+ 'Current Temperature in C': '32.33',
+ 'Current Temperature in F': '90.20',
+ 'Current Humidity': 47,
+ 'Current Wind Speed': 5.1,
+ 'Current Wind Pressure': 1006.14}
+
+
+
+
+current('ip',0)
+OUTPUT::
+{'Overall Weather ': 'Mostly Cloudy',
+ 'Current Temperature in C': '32.33',
+ 'Current Temperature in F': '90.20',
+ 'Current Humidity': 47,
+ 'Current Wind Speed': 5.09,
+ 'Current Wind Pressure': 1006.14}
+ 
+ 
+
+
+current(0,0)['Current Humidity']
+OUTPUT::
+47
+
+
+
+weekly(0,0)
+OUTPUT::
+{'19-April-2019': {'Overall Weather': 'Humid throughout the day and foggy in the morning.',
+  'Max Temperature in C': '26.16',
+  'Max Temperature in F': '79.09',
+  'Min Temperature in C': '32.64',
+  'Min Temperature in F': '90.75',
+  'Humidity': 57,
+  'Wind Speed': 4.79,
+  'Wind Pressure': 1008.21},
+ '20-April-2019': {'Overall Weather': 'Mostly cloudy in the morning and humid throughout the day.',
+  'Max Temperature in C': '24.41',
+  'Max Temperature in F': '75.93',
+  'Min Temperature in C': '36.37',
+  'Min Temperature in F': '97.46',
+  'Humidity': 51,
+  'Wind Speed': 3.36,
+  'Wind Pressure': 1006.67},
+ '21-April-2019': {'Overall Weather': 'Mostly cloudy starting in the afternoon.',
+  'Max Temperature in C': '24.99',
+  'Max Temperature in F': '76.99',
+  'Min Temperature in C': '36.91',
+  'Min Temperature in F': '98.43',
+  'Humidity': 55,
+  'Wind Speed': 6.64,
+  'Wind Pressure': 1005.36},
+ '22-April-2019': {'Overall Weather': 'Mostly cloudy throughout the day.',
+  'Max Temperature in C': '24.93',
+  'Max Temperature in F': '76.88',
+  'Min Temperature in C': '38.79',
+  'Min Temperature in F': '101.82',
+  'Humidity': 48,
+  'Wind Speed': 6.06,
+  'Wind Pressure': 1005.81},
+ '23-April-2019': {'Overall Weather': 'Humid throughout the day and mostly cloudy starting in the evening.',
+  'Max Temperature in C': '24.24',
+  'Max Temperature in F': '75.64',
+  'Min Temperature in C': '38.49',
+  'Min Temperature in F': '101.29',
+  'Humidity': 54,
+  'Wind Speed': 6.64,
+  'Wind Pressure': 1007.19},
+ '24-April-2019': {'Overall Weather': 'Partly cloudy in the morning and humid throughout the day.',
+  'Max Temperature in C': '24.43',
+  'Max Temperature in F': '75.98',
+  'Min Temperature in C': '38.48',
+  'Min Temperature in F': '101.26',
+  'Humidity': 56,
+  'Wind Speed': 8.09,
+  'Wind Pressure': 1008.26},
+ '25-April-2019': {'Overall Weather': 'Humid throughout the day.',
+  'Max Temperature in C': '24.93',
+  'Max Temperature in F': '76.87',
+  'Min Temperature in C': '39.46',
+  'Min Temperature in F': '103.02',
+  'Humidity': 56,
+  'Wind Speed': 9.59,
+  'Wind Pressure': 1007.35}}
+  
+  
+
+
+weekly('latlon',[52.3824,4.8995])
+OUTPUT::
+{'Today': {'0.00': {},
+  '1.00': {'Overall Weather': 'Mostly Cloudy',
+   'Temperature in C': '31.65',
+   'Temperature in F': '88.97',
+   'Humidity': 47,
+   'Wind Speed': 1.4,
+   'Wind Pressure': 1006.4},
+  '2.00': {'Overall Weather': 'Partly Cloudy',
+   'Temperature in C': '30.25',
+   'Temperature in F': '86.45',
+   'Humidity': 49,
+   'Wind Speed': 3.43,
+   'Wind Pressure': 1007.29},
+  '3.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '28.73',
+   'Temperature in F': '83.72',
+   'Humidity': 51,
+   'Wind Speed': 3.14,
+   'Wind Pressure': 1008.25},
+  '4.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '27.64',
+   'Temperature in F': '81.75',
+   'Humidity': 54,
+   'Wind Speed': 8.95,
+   'Wind Pressure': 1008.84},
+  '5.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '27.02',
+   'Temperature in F': '80.63',
+   'Humidity': 55,
+   'Wind Speed': 9.89,
+   'Wind Pressure': 1009.07},
+  '6.00': {'Overall Weather': 'Partly Cloudy',
+   'Temperature in C': '26.59',
+   'Temperature in F': '79.86',
+   'Humidity': 56,
+   'Wind Speed': 11.26,
+   'Wind Pressure': 1009.03},
+  '7.00': {'Overall Weather': 'Partly Cloudy',
+   'Temperature in C': '26.21',
+   'Temperature in F': '79.17',
+   'Humidity': 59,
+   'Wind Speed': 10.78,
+   'Wind Pressure': 1008.58},
+  '8.00': {'Overall Weather': 'Mostly Cloudy',
+   'Temperature in C': '25.82',
+   'Temperature in F': '78.47',
+   'Humidity': 62,
+   'Wind Speed': 6.67,
+   'Wind Pressure': 1007.75},
+  '9.00': {'Overall Weather': 'Mostly Cloudy',
+   'Temperature in C': '25.47',
+   'Temperature in F': '77.84',
+   'Humidity': 65,
+   'Wind Speed': 5.63,
+   'Wind Pressure': 1006.91},
+  '10.00': {'Overall Weather': 'Overcast',
+   'Temperature in C': '25.08',
+   'Temperature in F': '77.15',
+   'Humidity': 68,
+   'Wind Speed': 3.81,
+   'Wind Pressure': 1006.47},
+  '11.00': {'Overall Weather': 'Overcast',
+   'Temperature in C': '24.62',
+   'Temperature in F': '76.32',
+   'Humidity': 70,
+   'Wind Speed': 2.67,
+   'Wind Pressure': 1006.42},
+  '12.00': {'Overall Weather': 'Mostly Cloudy',
+   'Temperature in C': '24.41',
+   'Temperature in F': '75.93',
+   'Humidity': 70,
+   'Wind Speed': 2.64,
+   'Wind Pressure': 1006.62},
+  '13.00': {'Overall Weather': 'Mostly Cloudy',
+   'Temperature in C': '24.75',
+   'Temperature in F': '76.55',
+   'Humidity': 68,
+   'Wind Speed': 1.9,
+   'Wind Pressure': 1007.12},
+  '14.00': {'Overall Weather': 'Partly Cloudy',
+   'Temperature in C': '26.21',
+   'Temperature in F': '79.18',
+   'Humidity': 62,
+   'Wind Speed': 0.58,
+   'Wind Pressure': 1007.92},
+  '15.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '28.37',
+   'Temperature in F': '83.06',
+   'Humidity': 55,
+   'Wind Speed': 3.5,
+   'Wind Pressure': 1008.66},
+  '16.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '30.27',
+   'Temperature in F': '86.48',
+   'Humidity': 49,
+   'Wind Speed': 4.51,
+   'Wind Pressure': 1008.91},
+  '17.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '31.82',
+   'Temperature in F': '89.28',
+   'Humidity': 45,
+   'Wind Speed': 0.61,
+   'Wind Pressure': 1008.69},
+  '18.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '33.01',
+   'Temperature in F': '91.42',
+   'Humidity': 42,
+   'Wind Speed': 3.61,
+   'Wind Pressure': 1008.17},
+  '19.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '34.13',
+   'Temperature in F': '93.44',
+   'Humidity': 39,
+   'Wind Speed': 4.83,
+   'Wind Pressure': 1007.35},
+  '20.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '35.31',
+   'Temperature in F': '95.55',
+   'Humidity': 34,
+   'Wind Speed': 5.15,
+   'Wind Pressure': 1006.23},
+  '21.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '36.16',
+   'Temperature in F': '97.08',
+   'Humidity': 31,
+   'Wind Speed': 5.4,
+   'Wind Pressure': 1005.16},
+  '22.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '36.37',
+   'Temperature in F': '97.46',
+   'Humidity': 30,
+   'Wind Speed': 2.53,
+   'Wind Pressure': 1004.51},
+  '23.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '35.78',
+   'Temperature in F': '96.41',
+   'Humidity': 31,
+   'Wind Speed': 1.59,
+   'Wind Pressure': 1004.27},
+  '24.00': {'Overall Weather': 'Partly Cloudy',
+   'Temperature in C': '34.58',
+   'Temperature in F': '94.25',
+   'Humidity': 34,
+   'Wind Speed': 3.21,
+   'Wind Pressure': 1004.33}},
+ 'Tomorrow': {'0.00': {},
+  '1.00': {'Overall Weather': 'Partly Cloudy',
+   'Temperature in C': '33.17',
+   'Temperature in F': '91.70',
+   'Humidity': 38,
+   'Wind Speed': 2.91,
+   'Wind Pressure': 1004.72},
+  '2.00': {'Overall Weather': 'Partly Cloudy',
+   'Temperature in C': '31.64',
+   'Temperature in F': '88.96',
+   'Humidity': 43,
+   'Wind Speed': 4.64,
+   'Wind Pressure': 1005.45},
+  '3.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '30.13',
+   'Temperature in F': '86.23',
+   'Humidity': 50,
+   'Wind Speed': 7.2,
+   'Wind Pressure': 1006.18},
+  '4.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '28.95',
+   'Temperature in F': '84.11',
+   'Humidity': 57,
+   'Wind Speed': 8.57,
+   'Wind Pressure': 1006.58},
+  '5.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '28.21',
+   'Temperature in F': '82.77',
+   'Humidity': 64,
+   'Wind Speed': 9.19,
+   'Wind Pressure': 1006.64},
+  '6.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '27.71',
+   'Temperature in F': '81.87',
+   'Humidity': 69,
+   'Wind Speed': 9.44,
+   'Wind Pressure': 1006.51},
+  '7.00': {'Overall Weather': 'Partly Cloudy',
+   'Temperature in C': '27.27',
+   'Temperature in F': '81.09',
+   'Humidity': 73,
+   'Wind Speed': 9.15,
+   'Wind Pressure': 1006.18},
+  '8.00': {'Overall Weather': 'Humid and Partly Cloudy',
+   'Temperature in C': '26.90',
+   'Temperature in F': '80.42',
+   'Humidity': 76,
+   'Wind Speed': 8.35,
+   'Wind Pressure': 1005.65},
+  '9.00': {'Overall Weather': 'Humid and Mostly Cloudy',
+   'Temperature in C': '26.49',
+   'Temperature in F': '79.68',
+   'Humidity': 78,
+   'Wind Speed': 7.38,
+   'Wind Pressure': 1005.16},
+  '10.00': {'Overall Weather': 'Mostly Cloudy',
+   'Temperature in C': '25.88',
+   'Temperature in F': '78.59',
+   'Humidity': 80,
+   'Wind Speed': 6.52,
+   'Wind Pressure': 1004.98},
+  '11.00': {'Overall Weather': 'Mostly Cloudy',
+   'Temperature in C': '25.18',
+   'Temperature in F': '77.33',
+   'Humidity': 82,
+   'Wind Speed': 5.78,
+   'Wind Pressure': 1005.1},
+  '12.00': {'Overall Weather': 'Mostly Cloudy',
+   'Temperature in C': '24.99',
+   'Temperature in F': '76.99',
+   'Humidity': 82,
+   'Wind Speed': 5.28,
+   'Wind Pressure': 1005.39},
+  '13.00': {'Overall Weather': 'Partly Cloudy',
+   'Temperature in C': '26.08',
+   'Temperature in F': '78.94',
+   'Humidity': 76,
+   'Wind Speed': 5.31,
+   'Wind Pressure': 1005.87},
+  '14.00': {'Overall Weather': 'Partly Cloudy',
+   'Temperature in C': '28.44',
+   'Temperature in F': '83.19',
+   'Humidity': 67,
+   'Wind Speed': 5.85,
+   'Wind Pressure': 1006.56},
+  '15.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '31.12',
+   'Temperature in F': '88.01',
+   'Humidity': 56,
+   'Wind Speed': 6.52,
+   'Wind Pressure': 1007.15},
+  '16.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '33.34',
+   'Temperature in F': '92.01',
+   'Humidity': 48,
+   'Wind Speed': 6.97,
+   'Wind Pressure': 1007.31},
+  '17.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '35.04',
+   'Temperature in F': '95.08',
+   'Humidity': 40,
+   'Wind Speed': 7.23,
+   'Wind Pressure': 1007.04},
+  '18.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '36.29',
+   'Temperature in F': '97.33',
+   'Humidity': 35,
+   'Wind Speed': 7.37,
+   'Wind Pressure': 1006.53},
+  '19.00': {'Overall Weather': 'Clear',
+   'Temperature in C': '36.91',
+   'Temperature in F': '98.43',
+   'Humidity': 32,
+   'Wind Speed': 7.08,
+   'Wind Pressure': 1005.81},
+  '20.00': {'Overall Weather': 'Partly Cloudy',
+   'Temperature in C': '36.74',
+   'Temperature in F': '98.13',
+   'Humidity': 32,
+   'Wind Speed': 6.31,
+   'Wind Pressure': 1004.89},
+  '21.00': {'Overall Weather': 'Mostly Cloudy',
+   'Temperature in C': '36.16',
+   'Temperature in F': '97.08',
+   'Humidity': 33,
+   'Wind Speed': 5.72,
+   'Wind Pressure': 1004},
+  '22.00': {'Overall Weather': 'Mostly Cloudy',
+   'Temperature in C': '35.63',
+   'Temperature in F': '96.13',
+   'Humidity': 35,
+   'Wind Speed': 5.75,
+   'Wind Pressure': 1003.41},
+  '23.00': {'Overall Weather': 'Mostly Cloudy',
+   'Temperature in C': '35.23',
+   'Temperature in F': '95.41',
+   'Humidity': 38,
+   'Wind Speed': 6.4,
+   'Wind Pressure': 1003.09},
+  '24.00': {'Overall Weather': 'Mostly Cloudy',
+   'Temperature in C': '34.65',
+   'Temperature in F': '94.37',
+   'Humidity': 41,
+   'Wind Speed': 7.28,
+   'Wind Pressure': 1003.06}}}}
+  
+  
+
+
+hourly(0,0)['Today']['6.00']
+OUTPUT::
+{'Overall Weather': 'Partly Cloudy',
+ 'Temperature in C': '26.59',
+ 'Temperature in F': '79.86',
+ 'Humidity': 56,
+ 'Wind Speed': 11.26,
+ 'Wind Pressure': 1009.03}
